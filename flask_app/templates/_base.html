@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}NeuroScan{% endblock %} — EEG Seizure Detection</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div>
+        <h1>NeuroScan</h1>
+        <p class="tagline">AI-assisted EEG seizure detection</p>
+      </div>
+    </div>
+    <nav class="navbar">
+      <a href="/" class="nav-link {% if active=='home' %}active{% endif %}">Home</a>
+      <a href="/about" class="nav-link {% if active=='about' %}active{% endif %}">About</a>
+      <a href="/ml-insights" class="nav-link {% if active=='insights' %}active{% endif %}">ML Insights</a>
+    </nav>
+    <div class="header-right">
+      {% block status %}
+      <div class="status" id="modelStatus">
+        <span class="dot dot-green"></span> Model ready
+      </div>
+      {% endblock %}
+      {% if current_user %}
+      <div class="user-menu">
+        <span class="user-name">{{ current_user }}</span>
+        <a href="/logout" class="logout-link">Logout</a>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <p>NeuroScan demo · Educational use only · Not a diagnostic tool</p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

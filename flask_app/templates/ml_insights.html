@@ -1,0 +1,241 @@
+{% extends "_base.html" %}
+{% block title %}ML Insights{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>ML Insights</h1>
+  <p class="muted">A look under the hood of NeuroScan's seizure classifier.</p>
+</section>
+
+<section class="card">
+  <h2>Model</h2>
+  <div class="result-grid">
+    <div class="metric">
+      <span class="metric-label">Algorithm</span>
+      <span class="metric-value-sm">{{ metrics.algorithm }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Trees</span>
+      <span class="metric-value-sm">{{ metrics.n_estimators }}</span>
+    </div>
+    <div class="metric">
+      <span class="metric-label">Max Depth</span>
+      <span class="metric-value-sm">{{ metrics.max_depth }}</span>
+    </div>
+  </div>
+  <p class="explanation">
+    Random Forests are well-suited to tabular EEG features: they handle non-linear
+    interactions, are robust to noise, train quickly enough to run inside Replit,
+    and expose interpretable feature importance scores. They are the strongest
+    "no-deep-learning" baseline for biomedical signal classification.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Features Used</h2>
+  <p class="muted small">Each 5-second window is summarized into these features before classification.</p>
+  <div class="feature-grid">
+    {% for f in metrics.features %}
+      <div class="feature-chip">{{ f }}</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="card">
+  <h2>Performance Metrics</h2>
+  <p class="muted small">Illustrative metrics for the demo model.</p>
+  <div class="result-grid">
+    <div class="metric"><span class="metric-label">Accuracy</span><span class="metric-value">{{ (metrics.accuracy*100)|round(1) }}%</span></div>
+    <div class="metric"><span class="metric-label">Precision</span><span class="metric-value">{{ (metrics.precision*100)|round(1) }}%</span></div>
+    <div class="metric"><span class="metric-label">Recall</span><span class="metric-value">{{ (metrics.recall*100)|round(1) }}%</span></div>
+    <div class="metric"><span class="metric-label">F1 Score</span><span class="metric-value">{{ (metrics.f1*100)|round(1) }}%</span></div>
+  </div>
+</section>
+
+<section class="card cmp-card">
+  <div class="cmp-header">
+    <div>
+      <h2>Model Comparison</h2>
+      <p class="muted small">Offline-computed metrics for four candidate classifiers evaluated on the same EEG feature set.</p>
+    </div>
+    <div class="cmp-legend">
+      <span class="cmp-pill"><span class="cmp-dot accuracy"></span>Accuracy</span>
+      <span class="cmp-pill"><span class="cmp-dot precision"></span>Precision</span>
+      <span class="cmp-pill"><span class="cmp-dot recall"></span>Recall</span>
+      <span class="cmp-pill"><span class="cmp-dot f1"></span>F1 Score</span>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Model</th>
+          <th data-metric="accuracy">Accuracy (%)</th>
+          <th data-metric="precision">Precision (%)</th>
+          <th data-metric="recall">Recall (%)</th>
+          <th data-metric="f1">F1 Score (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, m in model_metrics.items() %}
+        <tr class="{% if name == 'Random Forest' %}row-active{% endif %}">
+          <th><span class="rank-chip rank-{{ rank_map[name] }}">#{{ rank_map[name] }}</span></th>
+          <th class="model-name">
+            {{ name }}
+            {% if name == "Random Forest" %}<span class="badge">in use</span>{% endif %}
+          </th>
+          {% for k in ['accuracy', 'precision', 'recall', 'f1'] %}
+          <td class="data-cell {% if best_by_metric[k] == name %}is-best{% endif %}">
+            <div class="data-bar-row">
+              <span class="data-num">{{ m[k] }}</span>
+              <div class="data-bar"><span class="data-bar-fill bar-{{ k }}" style="width: {{ m[k] }}%"></span></div>
+            </div>
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chart-wrap cmp-chart-wrap">
+    <canvas id="modelCmpChart"></canvas>
+  </div>
+
+  <p class="explanation">
+    The comparison shows that Random Forest provides the best balance between
+    precision and recall, making it suitable for seizure detection where
+    minimizing missed events is critical.
+  </p>
+</section>
+
+<section class="card">
+  <h2>Confusion Matrix</h2>
+  <table class="cm-table">
+    <thead>
+      <tr><th></th><th>Predicted Seizure</th><th>Predicted Normal</th></tr>
+    </thead>
+    <tbody>
+      <tr><th>Actual Seizure</th><td class="cm-tp">{{ metrics.confusion.tp }}</td><td class="cm-fn">{{ metrics.confusion.fn }}</td></tr>
+      <tr><th>Actual Normal</th><td class="cm-fp">{{ metrics.confusion.fp }}</td><td class="cm-tn">{{ metrics.confusion.tn }}</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Sample Frequency Spectrum</h2>
+  <p class="muted small">Synthetic illustration of the average EEG band powers the model relies on.</p>
+  <div class="chart-wrap small-chart"><canvas id="spectrumChart"></canvas></div>
+</section>
+
+<section class="card">
+  <h2>How the Model Works</h2>
+  <p>
+    A Random Forest is an ensemble of decision trees, each trained on a random
+    bootstrap of the data and a random subset of features. To classify a new
+    EEG window, every tree casts a vote, and the forest averages those votes
+    into a probability score. Seizure-prone windows tend to have:
+  </p>
+  <ul>
+    <li><strong>Higher signal energy</strong> — large amplitude rhythmic discharges</li>
+    <li><strong>Increased low-frequency (delta/theta) power</strong> — slow waves dominate</li>
+    <li><strong>Lower entropy</strong> — the signal becomes more rhythmic and predictable</li>
+    <li><strong>Higher variance</strong> — sustained departure from baseline</li>
+  </ul>
+  <p>
+    The forest learns thresholds across these features and combines them into
+    a probability between 0 and 1 for each window.
+  </p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // --- Model comparison grouped bar chart ---
+  const cmpData = {{ model_metrics|tojson }};
+  const cmpLabels = Object.keys(cmpData);
+  const cmpCtx = document.getElementById("modelCmpChart").getContext("2d");
+
+  function gradient(ctx, c1, c2) {
+    const g = ctx.createLinearGradient(0, 0, 0, 320);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    return g;
+  }
+  const colors = {
+    accuracy:  gradient(cmpCtx, "#4d9bff", "#1559c3"),
+    precision: gradient(cmpCtx, "#ffb74d", "#d97706"),
+    recall:    gradient(cmpCtx, "#5fd6a4", "#0f8f5c"),
+    f1:        gradient(cmpCtx, "#a78bfa", "#5b3fd9"),
+  };
+
+  new Chart(cmpCtx, {
+    type: "bar",
+    data: {
+      labels: cmpLabels,
+      datasets: [
+        { label: "Accuracy",  data: cmpLabels.map(k => cmpData[k].accuracy),  backgroundColor: colors.accuracy,  borderRadius: 6, borderSkipped: false },
+        { label: "Precision", data: cmpLabels.map(k => cmpData[k].precision), backgroundColor: colors.precision, borderRadius: 6, borderSkipped: false },
+        { label: "Recall",    data: cmpLabels.map(k => cmpData[k].recall),    backgroundColor: colors.recall,    borderRadius: 6, borderSkipped: false },
+        { label: "F1 Score",  data: cmpLabels.map(k => cmpData[k].f1),        backgroundColor: colors.f1,        borderRadius: 6, borderSkipped: false },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 900, easing: "easeOutQuart" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "rgba(15,31,58,0.92)",
+          titleColor: "#fff",
+          bodyColor: "#cbd5e1",
+          padding: 12,
+          cornerRadius: 8,
+          callbacks: { label: (i) => `${i.dataset.label}: ${i.parsed.y}%` },
+        },
+      },
+      scales: {
+        y: {
+          min: 70, max: 100,
+          ticks: { color: "#6b7a90", callback: (v) => v + "%" },
+          grid: { color: "#eef2f8" },
+        },
+        x: {
+          ticks: { color: "#0f1f3a", font: { weight: "600" } },
+          grid: { display: false },
+        },
+      },
+    },
+  });
+
+  // --- Sample frequency spectrum chart ---
+  const ctx = document.getElementById("spectrumChart").getContext("2d");
+  new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Delta", "Theta", "Alpha", "Beta", "Gamma"],
+      datasets: [{
+        label: "Avg Power",
+        data: [0.42, 0.31, 0.18, 0.14, 0.09],
+        backgroundColor: ["#1f6feb", "#4d9bff", "#1aa971", "#e89726", "#d83a52"],
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { ticks: { color: "#6b7a90" }, grid: { color: "#eef2f8" } },
+        x: { ticks: { color: "#6b7a90" }, grid: { display: false } },
+      },
+    },
+  });
+</script>
+{% endblock %}

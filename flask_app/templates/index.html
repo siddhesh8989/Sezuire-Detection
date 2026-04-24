@@ -1,0 +1,153 @@
+{% extends "_base.html" %}
+{% block title %}Home{% endblock %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Upload card -->
+<section class="card upload-card">
+  <h2>1. Upload EEG Recording</h2>
+  <p class="muted">Supports CHB-MIT format <code>.edf</code> files. Processed locally, never stored.</p>
+
+  <form id="uploadForm" class="dropzone" enctype="multipart/form-data">
+    <input type="file" id="fileInput" name="file" accept=".edf,application/octet-stream" hidden />
+    <div class="dz-inner">
+      <div class="dz-icon">⤓</div>
+      <p><strong>Click to choose</strong> or drag a <code>.edf</code> file here</p>
+      <p class="muted small" id="fileName">No file selected</p>
+    </div>
+    <button type="submit" class="btn primary" id="submitBtn" disabled>Analyze EEG</button>
+  </form>
+</section>
+
+<!-- Loading -->
+<section class="card hidden" id="loadingCard">
+  <div class="loading">
+    <div class="spinner"></div>
+    <div>
+      <h3>Processing EEG signal…</h3>
+      <p class="muted">Filtering, segmenting, extracting features, and running the model.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Result -->
+<section class="results hidden" id="resultsSection">
+
+  <!-- Alert box -->
+  <div class="alert-box" id="alertBox">
+    <div class="alert-icon" id="alertIcon">✓</div>
+    <div class="alert-text">
+      <h2 id="alertTitle">Normal</h2>
+      <p id="alertSubtitle">EEG within typical ranges</p>
+    </div>
+  </div>
+
+  <div class="card result-card" id="resultCard">
+    <div class="result-header">
+      <div>
+        <h2>2. Prediction Summary</h2>
+        <p class="muted" id="resultFile"></p>
+      </div>
+    </div>
+
+    <div class="probability-block">
+      <div class="prob-row">
+        <span class="metric-label">Seizure Probability</span>
+        <span class="metric-value" id="probabilityVal">—</span>
+      </div>
+      <div class="progress">
+        <div class="progress-bar" id="probabilityBar" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <div class="result-grid">
+      <div class="metric">
+        <span class="metric-label">Confidence</span>
+        <span class="metric-value" id="confidenceVal">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Affected Windows</span>
+        <span class="metric-value" id="ratioVal">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Duration Analyzed</span>
+        <span class="metric-value" id="durationVal">—</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Channels</span>
+        <span class="metric-value" id="channelsVal">—</span>
+      </div>
+    </div>
+
+    <p class="explanation" id="explanationText"></p>
+  </div>
+
+  <!-- Abnormal segments -->
+  <div class="card" id="segmentsCard">
+    <h3>Abnormal Segments</h3>
+    <p class="muted small">Time ranges (in seconds) where the model flagged seizure-like activity.</p>
+    <ul class="segments-list" id="segmentsList"></ul>
+  </div>
+
+  <!-- Spike detection -->
+  <div class="card" id="spikeCard">
+    <div class="spike-header">
+      <div>
+        <h3>Epileptiform Spike Detection</h3>
+        <p class="muted small">Sharp transient events detected on the first channel using a robust amplitude threshold.</p>
+      </div>
+      <div class="spike-stats">
+        <div class="metric">
+          <span class="metric-label">Spike Count</span>
+          <span class="metric-value" id="spikeCount">—</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Rate (per min)</span>
+          <span class="metric-value" id="spikeRate">—</span>
+        </div>
+      </div>
+    </div>
+    <p class="explanation" id="spikeNote"></p>
+  </div>
+
+  <!-- EEG waveform -->
+  <div class="card">
+    <h3>EEG Waveform Preview</h3>
+    <p class="muted small">First channel, bandpass filtered (0.5–40 Hz). Red dots mark detected spikes.</p>
+    <div class="chart-wrap"><canvas id="waveChart"></canvas></div>
+  </div>
+
+  <!-- Per-window probability -->
+  <div class="card">
+    <h3>Per-window Seizure Probability</h3>
+    <p class="muted small">Each bar is a 5-second window sampled across the entire recording. The X-axis shows the window's time offset (in seconds). Red bars cross the 0.5 detection threshold.</p>
+    <div class="chart-wrap"><canvas id="probChart"></canvas></div>
+  </div>
+
+  <!-- Frequency band chart -->
+  <div class="card">
+    <h3>Frequency Band Powers</h3>
+    <p class="muted small">Average power in each EEG band across all analyzed windows.</p>
+    <div class="chart-wrap small-chart"><canvas id="bandChart"></canvas></div>
+  </div>
+
+  <!-- Feature importance -->
+  <div class="card">
+    <h3>Feature Importance</h3>
+    <p class="muted small">Which signal characteristics drive the model's decisions.</p>
+    <div class="chart-wrap small-chart"><canvas id="featChart"></canvas></div>
+  </div>
+</section>
+
+<!-- Error -->
+<section class="card error-card hidden" id="errorCard">
+  <h3>Something went wrong</h3>
+  <p id="errorText"></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/script.js"></script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "_base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<section class="card">
+  <h1>NeuroScan — AI EEG Seizure Detection</h1>
+  <p class="muted">An educational demo combining classical EEG signal processing with machine learning.</p>
+</section>
+
+<section class="card">
+  <h2>What it does</h2>
+  <p>NeuroScan ingests raw EEG recordings in the standard <code>.edf</code> format, applies bandpass filtering and feature extraction, and runs a lightweight classifier to flag windows that look like ictal (seizure) activity.</p>
+</section>
+
+<section class="card">
+  <h2>Dataset</h2>
+  <p>Designed to work with the <strong>CHB-MIT Scalp EEG Database</strong> (specifically <code>chb01</code> recordings) hosted on PhysioNet. The CHB-MIT dataset contains EEG recordings from pediatric subjects with intractable seizures — the gold standard for benchmarking seizure detection models.</p>
+</section>
+
+<section class="card">
+  <h2>The Problem</h2>
+  <p>Manual review of long-duration EEG recordings is time-consuming and demands expert neurologists. A patient might be monitored for days; a clinician must scan every channel for telltale spikes, sharp waves, and rhythmic discharges.</p>
+</section>
+
+<section class="card">
+  <h2>The Solution</h2>
+  <p>An automated pipeline that:</p>
+  <ul>
+    <li>Loads multi-channel EEG via <code>MNE</code> / <code>pyEDFlib</code></li>
+    <li>Bandpass filters (0.5–40 Hz) and z-score normalizes each channel</li>
+    <li>Segments the signal into 5-second windows</li>
+    <li>Extracts statistical (mean, variance, energy, entropy) and spectral features (delta, theta, alpha, beta, gamma band powers)</li>
+    <li>Predicts seizure probability per window using a Random Forest</li>
+    <li>Flags abnormal regions and visualizes waveform, probabilities, and band powers</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h2>Future Scope</h2>
+  <ul>
+    <li>Train on the full CHB-MIT corpus (chb01–chb24) with patient-aware cross-validation</li>
+    <li>Replace Random Forest with a 1D-CNN or transformer trained end-to-end on raw windows</li>
+    <li>Real-time streaming inference for bedside monitoring</li>
+    <li>Explainability via SHAP and signal-level saliency maps</li>
+    <li>Multi-class classification (focal vs generalized, pre-ictal warnings)</li>
+  </ul>
+</section>
+{% endblock %}
